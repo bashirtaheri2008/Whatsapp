@@ -2,7 +2,7 @@ const {
     default: makeWASocket, 
     useMultiFileAuthState, 
     DisconnectReason 
-} = require('@outlaw1/baileys');
+} = require('@outlaw-baileys/baileys'); // ← پکیج اصلاح شده
 const qrcode = require('qrcode-terminal');
 const pino = require('pino');
 const fs = require('fs');
@@ -15,24 +15,20 @@ const MEDIA_DIR = './media';
 
 if (!fs.existsSync(MEDIA_DIR)) fs.mkdirSync(MEDIA_DIR);
 
-// ====== وب‌سرور برای Render ======
 const app = express();
 app.get('/', (req, res) => res.send('🤖 WhatsApp Bot is running!'));
-
 app.get('/qr', (req, res) => {
     if (global.LATEST_QR) {
-        res.send(`<h2>Scan this QR</h2><img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(global.LATEST_QR)}" />`);
+        res.send(`<img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(global.LATEST_QR)}" />`);
     } else {
         res.send('✅ Connected or QR not ready.');
     }
 });
-
 app.listen(PORT, '0.0.0.0', () => console.log(`🌐 Web server on port ${PORT}`));
 
 const processedIds = new Set();
 let SELF_JID = null;
 
-// ====== تابع اصلی ======
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
 
@@ -43,16 +39,13 @@ async function startBot() {
         browser: ['Ubuntu', 'Chrome', '20.0.04'],
     });
 
-    // ====== مدیریت اتصال و QR ======
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update;
-
         if (qr) {
             global.LATEST_QR = qr;
             console.log('\n📱 QR رو در /qr ببین:\n');
             qrcode.generate(qr, { small: true });
         }
-
         if (connection === 'close') {
             const code = lastDisconnect?.error?.output?.statusCode;
             if (code !== DisconnectReason.loggedOut) {
@@ -71,7 +64,6 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds);
 
-    // ====== مدیریت پیام‌ها ======
     sock.ev.on('messages.upsert', async ({ messages }) => {
         for (const msg of messages) {
             if (!msg.message || processedIds.has(msg.key.id)) continue;
@@ -82,10 +74,8 @@ async function startBot() {
             
             console.log('📩 پیام دریافتی:', text, '| fromMe:', msg.key.fromMe);
 
-            // فقط اگه متن نباشه رد کن
             if (!text) continue;
 
-            // ====== دستور !dox (حتی از خودت) ======
             if (text.startsWith('!dox')) {
                 console.log('🔍 دستور !dox دریافت شد!');
                 
@@ -99,7 +89,6 @@ async function startBot() {
 
                 console.log('🔑 کلیدهای quoted:', Object.keys(quoted));
 
-                // پیدا کردن View Once
                 let viewOnce = null;
                 if (quoted.viewOnceMessageV2?.message) viewOnce = quoted.viewOnceMessageV2.message;
                 else if (quoted.viewOnceMessage?.message) viewOnce = quoted.viewOnceMessage.message;
@@ -122,7 +111,6 @@ async function startBot() {
                     const isImage = !!(viewOnce.imageMessage || quoted.imageMessage);
                     const type = isImage ? 'عکس' : 'ویدیو';
 
-                    // ارسال به سلف‌چت خودت
                     if (SELF_JID) {
                         const caption = `🔓 ${type} View Once\n👤 از: ${msg.pushName || 'ناشناس'}`;
                         if (isImage) await sock.sendMessage(SELF_JID, { image: buffer, caption });
