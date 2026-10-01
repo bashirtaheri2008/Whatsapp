@@ -2,7 +2,7 @@ const {
     default: makeWASocket, 
     useMultiFileAuthState, 
     DisconnectReason 
-} = require('@outlaw-baileys/baileys'); // ← کتابخانه جدید
+} = require('@outlaw1/baileys'); // ← پکیج درست
 const qrcode = require('qrcode-terminal');
 const pino = require('pino');
 const fs = require('fs');
@@ -27,7 +27,7 @@ app.get('/qr', (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log(`🌐 Web server on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`🌐 Web server on port ${PORT}`));
 
 const processedIds = new Set();
 let SELF_JID = null;
@@ -47,7 +47,7 @@ async function startBot() {
 
         if (qr) {
             global.LATEST_QR = qr;
-            console.log('\n📱 QR رو در /qr ببین یا توی ترمینال:\n');
+            console.log('\n📱 QR رو در /qr ببین:\n');
             qrcode.generate(qr, { small: true });
         }
 
@@ -69,7 +69,7 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    sock.ev.on('messages.upsert', async ({ messages }) => {
         for (const msg of messages) {
             if (!msg.message || processedIds.has(msg.key.id)) continue;
             processedIds.add(msg.key.id);
@@ -100,7 +100,7 @@ async function startBot() {
                 }
 
                 try {
-                    // ✨ جادوی rvo(): پرچم viewOnce رو false می‌کنه
+                    // ✨ rvo(): پرچم viewOnce رو برمی‌داره
                     const buffer = await sock.rvo(viewOnce);
 
                     const isImage = !!(viewOnce.imageMessage || quoted.imageMessage);
